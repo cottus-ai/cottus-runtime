@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+.env
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# C++ / CUDA
+*.o
+*.a
+*.so
+*.ptx
+*.cubin
+*.obj
+
+# CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
