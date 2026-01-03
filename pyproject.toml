@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=42", "wheel", "cmake", "ninja", "pybind11"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cottus-runtime"
+version = "0.1.0"
+description = "High-performance Llama inference engine"
+readme = "README.md"
+authors = [{name = "Cottus Team"}]
+license = {text = "Apache License 2.0"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: C++",
+]
+dependencies = [
+    "torch>=2.0.0",
+    "transformers",
+    "safetensors",
+]
+requires-python = ">=3.8"
