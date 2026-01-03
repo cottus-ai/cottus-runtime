@@ -30,3 +30,7 @@ Makefile
 
 # OS
 .DS_Store
+
+
+# Logs
+*.log
