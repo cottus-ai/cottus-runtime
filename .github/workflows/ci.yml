@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install torch transformers safetensors numpy pytest cmake ninja setuptools wheel
+
+    - name: Configure CMake
+      # We manually configure to ensure C++ tests are built
+      run: cmake -S . -B build_cpp -DBUILD_TESTS=ON
+
+    - name: Build C++ Tests
+      run: cmake --build build_cpp --parallel
+
+    - name: Run C++ Tests
+      run: |
+        cd build_cpp
+        ctest --output-on-failure
+
+    - name: Build and Install Python Package
+      run: |
+        pip install -v -e .
+
+    - name: Run Python Parity Tests
+      run: |
+        # Run the parity test script
+        python tests/test_hf_parity.py

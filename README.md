@@ -4,7 +4,21 @@
   <img src="assets/icons/logo.png" alt="Cottus Runtime Logo" width="200"/>
 </p>
 
-A high-performance C++/CUDA LLM inference engine with Python bindings, built from scratch.
+<h3 align="center">
+High-performance C++/CUDA LLM inference engine with Python bindings.
+</h3>
+
+<div align="center">
+
+[![PyPI](https://img.shields.io/pypi/v/cottus-runtime)](https://pypi.org/project/cottus-runtime/)
+[![Python](https://img.shields.io/badge/python-3.8%2B-blue)](https://www.python.org/)
+[![C++](https://img.shields.io/badge/std-c%2B%2B17-blue)](https://en.cppreference.com/w/cpp/17)
+[![CUDA](https://img.shields.io/badge/cuda-12.0%2B-green)](https://developer.nvidia.com/cuda-toolkit)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+
+</div>
+
+Cottus Runtime is a custom inference engine built from scratch for Llama architectures, prioritizing low-latency and strict memory management.
 
 ## Features
 - **Core:** Custom C++20 Transformer implementation.
@@ -56,6 +70,14 @@ python examples/3_tinyllama_real.py
 
 ## Usage
 
+The best way to get started is to look at the **[examples/](examples/)** directory, which contains complete scripts for various use cases:
+
+*   **[1_basic_inference.py](examples/1_basic_inference.py)**: Minimal example running on CUDA.
+*   **[2_cpu_inference.py](examples/2_cpu_inference.py)**: Running on CPU (no GPU required).
+*   **[3_tinyllama_real.py](examples/3_tinyllama_real.py)**: Loading and running the real TinyLlama-1.1B model.
+*   **[4_long_context.py](examples/4_long_context.py)**: Stress testing with long context windows.
+
+### Basic Example
 ```python
 from cottus import Engine, EngineConfig
 from cottus.model import load_hf_model
@@ -84,4 +106,5 @@ print(tokenizer.decode(output_ids))
 ```
 
 ## License
-Apache License 2.0
+
+Cottus Runtime is licensed under the Apache License Version 2.0. By contributing to the project, you agree to the license and copyright terms therein and release your contribution under these terms.
