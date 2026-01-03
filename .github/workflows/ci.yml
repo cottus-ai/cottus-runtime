@@ -21,10 +21,12 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install torch transformers safetensors numpy pytest cmake ninja setuptools wheel
+        # Install CPU-only torch first to verify build without massive CUDA deps
+        pip install torch --index-url https://download.pytorch.org/whl/cpu
+        pip install transformers safetensors numpy pytest cmake ninja setuptools wheel
 
     - name: Configure CMake
-      # We manually configure to ensure C++ tests are built
+      #we manually configure to ensure C++ tests are built
       run: cmake -S . -B build_cpp -DBUILD_TESTS=ON
 
     - name: Build C++ Tests
