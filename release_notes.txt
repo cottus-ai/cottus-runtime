@@ -1,0 +1,29 @@
+# Cottus Runtime v0.1.0 Release
+
+High-performance C++/CUDA LLM inference engine built from scratch.
+
+## 🚀 Features
+*   **Custom C++20 Core:** Zero-overhead abstraction layer.
+*   **Hand-Written CUDA Kernels:** Optimized PagedAttention, RMSNorm, and RoPE.
+*   **Python Bindings:** Seamless integration with PyTorch via `cottus.Engine`.
+*   **Memory Efficient:** Strict `BlockAllocator` and virtual memory paging.
+*   **CPU Fallback:** Run inference anywhere, even without a GPU.
+
+## 📦 Installation
+```bash
+pip install cottus-runtime
+```
+
+## 🛠️ Usage
+```python
+from cottus import Engine, EngineConfig
+from cottus.model import load_hf_model
+
+weights, config, _, tokenizer, _ = load_hf_model("TinyLlama/TinyLlama-1.1B-Chat-v1.0")
+engine = Engine(config, weights)
+# ... see examples/ for more!
+```
+
+## 🔗 Links
+*   **PyPI:** https://pypi.org/project/cottus-runtime/
+*   **Docs:** https://github.com/cottus-ai/cottus-runtime

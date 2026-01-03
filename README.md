@@ -1,4 +1,4 @@
-# Cottus Runtime v0.1
+# Cottus Runtime  
 
 <p align="center">
   <img src="assets/icons/logo.png" alt="Cottus Runtime Logo" width="200"/>
@@ -18,7 +18,7 @@ High-performance C++/CUDA LLM inference engine with Python bindings.
 
 </div>
 
-Cottus Runtime is a custom inference engine built from scratch for Llama architectures, prioritizing low-latency and strict memory management.
+Cottus Runtime is a custom inference engine built from scratch for Llama architectures, prioritizing low-latency and strict memory management. It implements its own Transformer execution pipeline, KV cache management, and attention kernels.
 
 ## Features
 - **Core:** Custom C++20 Transformer implementation.
@@ -26,6 +26,26 @@ Cottus Runtime is a custom inference engine built from scratch for Llama archite
 - **Compute:** CUDA-accelerated kernels for Attention, RoPE, and GEMM (cuBLAS).
 - **Parity:** Exact token matching with HuggingFace Transformers (verified).
 - **Interface:** Clean Python API via PyBind11.
+
+## Current Limitations (v0.1)
+
+- Single‑GPU only
+- Limited model family support (LLaMA‑style)
+- CPU backend not optimized (minor numerical divergence vs CUDA)
+- No quantization support
+
+These constraints are intentional for the initial release.
+
+## What to expect in future
+### Here is what I have planned to add to the project in later iterations. Send a PR if you want to contribute to the project.
+- **Multi‑GPU & Distributed Execution** – Enable scaling across multiple GPUs and clusters for larger models.  
+- **Expanded Model Support** – Add native support for Mistral, Falcon, and other non‑LLaMA families.  
+- **Optimized CPU Backend** – Introduce a high‑performance CPU path (vectorized kernels, OpenMP) and enable CPU‑only inference.  
+- **Quantization & INT8** – Provide post‑training quantization pipelines and INT8 kernels for reduced memory and faster inference.  
+- **FlashAttention‑style Kernels** – Integrate memory‑efficient, block‑sparse attention kernels to cut latency and improve throughput.  
+- **Plugin System** – Allow community‑contributed extensions (custom ops, alternative KV‑cache strategies).  
+- **Better Tooling** – CLI utilities for model conversion, benchmarking, and profiling.  
+
 
 ## Installation
 
@@ -70,12 +90,7 @@ python examples/3_tinyllama_real.py
 
 ## Usage
 
-The best way to get started is to look at the **[examples/](examples/)** directory, which contains complete scripts for various use cases:
-
-*   **[1_basic_inference.py](examples/1_basic_inference.py)**: Minimal example running on CUDA.
-*   **[2_cpu_inference.py](examples/2_cpu_inference.py)**: Running on CPU (no GPU required).
-*   **[3_tinyllama_real.py](examples/3_tinyllama_real.py)**: Loading and running the real TinyLlama-1.1B model.
-*   **[4_long_context.py](examples/4_long_context.py)**: Stress testing with long context windows.
+The best way to get started is to look at the **[examples/](examples/)** directory, which contains complete scripts for various use cases.
 
 ### Basic Example
 ```python

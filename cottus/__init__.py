@@ -1,7 +1,9 @@
 import os
 import sys
 
-# Try to find _cottus_C in build directory for dev mode
+__version__ = "0.1.0"
+
+#find _cottus_C in build directory for dev mode
 if 'cottus' in sys.modules:
     _pkg_path = os.path.dirname(os.path.abspath(__file__))
     _root_path = os.path.dirname(_pkg_path)

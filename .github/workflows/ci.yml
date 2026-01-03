@@ -40,7 +40,8 @@ jobs:
     - name: Run C++ Tests
       run: |
         cd build_cpp
-        ctest --output-on-failure
+        # Exclude parity tests that require a physical GPU (runner has none)
+        ctest --output-on-failure -E "paged_attention_parity|compute_primitives_parity"
 
     - name: Build and Install Python Package
       run: |
