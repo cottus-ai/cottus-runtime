@@ -1,0 +1,73 @@
+
+# Validating C++ Unit Tests
+
+# BlockAllocator Test
+add_executable(test_block_allocator test_block_allocator.cpp)
+target_link_libraries(test_block_allocator PRIVATE cottus_core)
+add_test(NAME block_allocator_test COMMAND test_block_allocator)
+
+# PageTable Test
+add_executable(test_page_table test_page_table.cpp)
+target_link_libraries(test_page_table PRIVATE cottus_core)
+add_test(NAME page_table_test COMMAND test_page_table)
+
+# Engine Memory Test
+add_executable(test_engine_memory test_engine_memory.cpp)
+target_link_libraries(test_engine_memory PRIVATE cottus_core)
+add_test(NAME engine_memory_test COMMAND test_engine_memory)
+
+# Generic Transformer Test
+add_executable(test_generic_transformer test_generic_transformer.cpp)
+target_link_libraries(test_generic_transformer PRIVATE cottus_core)
+add_test(NAME generic_transformer_test COMMAND test_generic_transformer)
+
+# Hardening Tests
+add_executable(test_block_allocator_hardening test_block_allocator_hardening.cpp)
+target_link_libraries(test_block_allocator_hardening PRIVATE cottus_core)
+add_test(NAME block_allocator_hardening_test COMMAND test_block_allocator_hardening)
+
+add_executable(test_page_table_hardening test_page_table_hardening.cpp)
+target_link_libraries(test_page_table_hardening PRIVATE cottus_core)
+add_test(NAME page_table_hardening_test COMMAND test_page_table_hardening)
+
+add_executable(test_kv_layout_hardening test_kv_layout_hardening.cpp)
+target_link_libraries(test_kv_layout_hardening PRIVATE cottus_core)
+add_test(NAME kv_layout_hardening_test COMMAND test_kv_layout_hardening)
+
+add_executable(test_engine_hardening test_engine_hardening.cpp)
+target_link_libraries(test_engine_hardening PRIVATE cottus_core)
+add_test(NAME engine_hardening_test COMMAND test_engine_hardening)
+
+add_executable(test_model_hardening test_model_hardening.cpp)
+target_link_libraries(test_model_hardening PRIVATE cottus_core)
+add_test(NAME model_hardening_test COMMAND test_model_hardening)
+
+# PagedAttention CPU Test
+add_executable(test_paged_attention_cpu test_paged_attention_cpu.cpp)
+target_link_libraries(test_paged_attention_cpu PRIVATE cottus_core)
+add_test(NAME paged_attention_cpu_test COMMAND test_paged_attention_cpu)
+
+# PagedAttention Parity Test (CPU vs CUDA)
+add_executable(test_paged_attention_parity test_paged_attention_parity.cpp)
+target_link_libraries(test_paged_attention_parity PRIVATE cottus_core)
+add_test(NAME paged_attention_parity_test COMMAND test_paged_attention_parity)
+
+# Compute Primitives Parity Test
+add_executable(test_compute_primitives_parity test_compute_primitives_parity.cpp)
+target_link_libraries(test_compute_primitives_parity PRIVATE cottus_core)
+add_test(NAME compute_primitives_parity_test COMMAND test_compute_primitives_parity)
+
+# Single Layer Forward Test
+add_executable(test_single_layer_forward test_single_layer_forward.cpp)
+target_link_libraries(test_single_layer_forward PRIVATE cottus_core)
+add_test(NAME single_layer_forward_test COMMAND test_single_layer_forward)
+
+# RoPE and Multi-Token Test
+add_executable(test_rope_and_multitoken test_rope_and_multitoken.cpp)
+target_link_libraries(test_rope_and_multitoken PRIVATE cottus_core)
+add_test(NAME rope_and_multitoken_test COMMAND test_rope_and_multitoken)
+
+# Greedy Decode Test
+add_executable(test_greedy_decode test_greedy_decode.cpp)
+target_link_libraries(test_greedy_decode PRIVATE cottus_core)
+add_test(NAME greedy_decode_test COMMAND test_greedy_decode)
