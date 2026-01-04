@@ -34,7 +34,7 @@ jobs:
       run: |
         pip install auditwheel
         python -m build
-        auditwheel repair dist/*.whl -w dist/fixed
+        auditwheel repair dist/*.whl -w dist/fixed --exclude libcudart.so.12 --exclude libcublas.so.12 --exclude libcublasLt.so.12 --exclude libcufft.so.11 --exclude libcurand.so.10 --exclude libcusolver.so.11 --exclude libcusparse.so.12 --exclude libnvrtc.so.12
         mv dist/fixed/* dist/
         rm -rf dist/fixed
         rm dist/*linux_x86_64.whl
