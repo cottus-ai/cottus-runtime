@@ -5,7 +5,7 @@
 </p>
 
 <h3 align="center">
-High-performance C++/CUDA LLM inference engine with Python bindings.
+C++/CUDA LLM inference engine with Python bindings.
 </h3>
 
 <div align="center">
@@ -27,12 +27,24 @@ Cottus Runtime is a custom inference engine built from scratch for Llama archite
 - **Parity:** Exact token matching with HuggingFace Transformers (verified).
 - **Interface:** Clean Python API via PyBind11.
 
+
+
+## Supported Models
+
+Cottus Runtime currently supports the following architectures with **verified exact parity** to HuggingFace Transformers.
+
+| Architecture | Models | Precision | Status |
+| :--- | :--- | :--- | :--- |
+| **Llama** | Llama 2 (7B/13B/70B), Llama 3 (8B/70B) | FP16 / FP32 | IN PRODUCTION |
+| **TinyLlama** | TinyLlama-1.1B | FP16 / FP32 | IN PRODUCTION |
+| **Mistral** | Mistral 7B | FP16 | IN PROGRESS |
+
 ## What to expect in future
 ### Here is what I have planned to add to the project in later iterations. Send a PR if you want to contribute to the project.
 - **Multi‑GPU & Distributed Execution** – Enable scaling across multiple GPUs and clusters for larger models.  
 - **Expanded Model Support** – Add native support for Mistral, Falcon, and other non‑LLaMA families.  
 - **Optimized CPU Backend** – Introduce a high‑performance CPU path (vectorized kernels, OpenMP) and enable CPU‑only inference.  
-- **Quantization & INT8** – Provide post‑training quantization pipelines and INT8 kernels for reduced memory and faster inference.  
+- **Quantization & INT8** – Provide post‑training quantization pipelines and INT8 kernels for reduced memory and faster inference.
 - **FlashAttention‑style Kernels** – Integrate memory‑efficient, block‑sparse attention kernels to cut latency and improve throughput.  
 - **Plugin System** – Allow community‑contributed extensions (custom ops, alternative KV‑cache strategies).  
 - **Better Tooling** – CLI utilities for model conversion, benchmarking, and profiling.  
@@ -46,19 +58,19 @@ Cottus Runtime is a custom inference engine built from scratch for Llama archite
 - CMake 3.18+
 - Python 3.8+
 
-### Install from Source
+### Install from PyPI
+
+Using pip:
 ```bash
-# Clone repository
-git clone https://github.com/cottus-ai/cottus-runtime.git
-cd cottus-runtime
-
-# Create virtual environment (Recommended)
-python3 -m venv .venv
-source .venv/bin/activate
-
-# Install in editable mode
-pip install -e .
+pip install cottus
 ```
+
+Using uv (recommended for speed):
+```bash
+uv install cottus
+```
+
+
 
 ## Quick Start
 
@@ -68,7 +80,7 @@ python examples/1_basic_inference.py --device cuda
 ```
 
 ### 2. CPU Fallback
-No GPU? No problem.
+There is a CPU fallback here. Wouldn't recommebd=
 ```bash
 python examples/2_cpu_inference.py
 ```
