@@ -7,19 +7,17 @@
 #include <stdexcept>
 #include <cstring>
 #include <algorithm>
-#include <cstring>
-#include <algorithm>
 
 namespace cottus {
 
 #define CUDA_CHECK(call) \
-    do
+    do \
     { \
         cudaError_t err = call; \
         if (err != cudaSuccess) { \
             throw std::runtime_error(std::string("CUDA error: ") + cudaGetErrorString(err)); \
         } \
-    }
+    } \
     while(0)
 
 GenericTransformer::GenericTransformer(const EngineConfig& config, const std::unordered_map<std::string, uintptr_t>& weightPtrs)
