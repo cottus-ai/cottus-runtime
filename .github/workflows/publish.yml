@@ -13,8 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
-      id-token: write  # IMPORTANT: mandatory for trusted publishing
-
+      id-token: write  ##most important
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -26,6 +25,8 @@ jobs:
 
     - name: Install build tools
       run: |
+        sudo apt-get update
+        sudo apt-get install -y nvidia-cuda-toolkit
         python -m pip install --upgrade pip
         pip install build cmake ninja
 
