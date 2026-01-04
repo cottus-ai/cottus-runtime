@@ -30,8 +30,14 @@ jobs:
         python -m pip install --upgrade pip
         pip install build cmake ninja
 
-    - name: Build package
-      run: python -m build
+    - name: Build and repair package
+      run: |
+        pip install auditwheel
+        python -m build
+        auditwheel repair dist/*.whl --plat manylinux_2_31_x86_64 -w dist/fixed
+        mv dist/fixed/* dist/
+        rm -rf dist/fixed
+        rm dist/*linux_x86_64.whl
 
     - name: Publish to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
