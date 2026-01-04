@@ -79,11 +79,11 @@ def load_hf_model(model_name: str = "hf-internal-testing/tiny-random-LlamaForCau
     weight_tensors = {}  
     
     state_dict = hf_model.state_dict()
-    layers_to_skip = ['embed_tokens.weight']  #only skip embedding table (lookup, not dot product)
+    layers_to_skip = ['embed_tokens.weight']  
     transposed_count = 0
     
     for name, tensor in state_dict.items():
-        #ensure contiguous float32
+        # Ensure contiguous float32
         tensor = tensor.contiguous().float()
         
         # Transpose 2D weight matrices (linear layers) except embeddings
@@ -95,8 +95,7 @@ def load_hf_model(model_name: str = "hf-internal-testing/tiny-random-LlamaForCau
         )
         
         if should_transpose:
-            # print(f"  Transposing {name}: {tensor.shape} → {tensor.T.shape}")
-            tensor = tensor.T.contiguous()  # [out, in] → [in, out]
+            tensor = tensor.T.contiguous()
             transposed_count += 1
         
         weight_tensors[name] = tensor
@@ -125,7 +124,7 @@ def create_cottus_engine(weight_ptrs: Dict[str, int], config) -> "_cottus_C.Engi
 
 
 if __name__ == "__main__":
-    # Test loading
+    #load model
     weight_ptrs, config, model, tokenizer, tensors = load_hf_model()
     
     print(f"\nModel config:")

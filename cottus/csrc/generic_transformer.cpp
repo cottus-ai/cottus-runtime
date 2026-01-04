@@ -13,12 +13,14 @@
 namespace cottus {
 
 #define CUDA_CHECK(call) \
-    do { \
+    do
+    { \
         cudaError_t err = call; \
         if (err != cudaSuccess) { \
             throw std::runtime_error(std::string("CUDA error: ") + cudaGetErrorString(err)); \
         } \
-    } while(0)
+    }
+    while(0)
 
 GenericTransformer::GenericTransformer(const EngineConfig& config, const std::unordered_map<std::string, uintptr_t>& weightPtrs)
     : config_(config) {
@@ -30,57 +32,39 @@ GenericTransformer::GenericTransformer(const EngineConfig& config, const std::un
         }
         return it->second;
     };
-
-    // Load global weights
     token_embedding_table_ = getWeight("model.embed_tokens.weight");
     output_norm_ = getWeight("model.norm.weight");
     output_head_ = getWeight("lm_head.weight");
-
-    // Load per-layer weights
     layers_.resize(config.numLayers);
     for (int32_t i = 0; i < config.numLayers; ++i) {
         std::string prefix = "model.layers." + std::to_string(i) + ".";
-        
         layers_[i].wq = getWeight(prefix + "self_attn.q_proj.weight");
         layers_[i].wk = getWeight(prefix + "self_attn.k_proj.weight");
         layers_[i].wv = getWeight(prefix + "self_attn.v_proj.weight");
         layers_[i].wo = getWeight(prefix + "self_attn.o_proj.weight");
-        
         layers_[i].w1 = getWeight(prefix + "mlp.gate_proj.weight");
         layers_[i].w2 = getWeight(prefix + "mlp.down_proj.weight");
         layers_[i].w3 = getWeight(prefix + "mlp.up_proj.weight");
-        
         layers_[i].attention_norm = getWeight(prefix + "input_layernorm.weight");
         layers_[i].ffn_norm = getWeight(prefix + "post_attention_layernorm.weight");
     }
-
-    // If using CUDA, we must upload all weights to GPU memory
-    if (config_.device == "cuda") {
-        auto upload = [&](uintptr_t hostPtr, size_t sizeBytes) -> uintptr_t {
+    if(config_.device == "cuda")
+    {
+        auto upload = [&](uintptr_t hostPtr, size_t sizeBytes) -> uintptr_t
+        {
             void* devPtr = nullptr;
             CUDA_CHECK(cudaMalloc(&devPtr, sizeBytes));
             CUDA_CHECK(cudaMemcpy(devPtr, reinterpret_cast<void*>(hostPtr), sizeBytes, cudaMemcpyHostToDevice));
             allocated_gpu_weights_.push_back(devPtr);
             return reinterpret_cast<uintptr_t>(devPtr);
         };
-
-        // Dimensions
         int32_t vocabSize = config.vocabSize;
         int32_t hidden = config.hiddenDim;
         int32_t headDim = config.headDim;
         int32_t numHeads = config.numHeads;
         int32_t numKvHeads = config.numKvHeads;
         int32_t intermediate = config.intermediateDim;
-
-        // Upload Global
-        // Note: token_embedding_table_ is used on CPU (see forwardToken start)
-        // Note: output_head_ is used on CPU (see forwardToken end)
-        // Only output_norm_ is used on GPU by rmsnormCUDA
-        // token_embedding_table_ = upload(token_embedding_table_, vocabSize * hidden * sizeof(float)); // SKIP
         output_norm_ = upload(output_norm_, hidden * sizeof(float)); 
-        // output_head_ = upload(output_head_, hidden * vocabSize * sizeof(float)); // SKIP
-
-        // Upload Layers
         for (int32_t i = 0; i < config.numLayers; ++i) {
             layers_[i].wq = upload(layers_[i].wq, hidden * numHeads * headDim * sizeof(float));
             layers_[i].wk = upload(layers_[i].wk, hidden * numKvHeads * headDim * sizeof(float));
@@ -111,11 +95,9 @@ std::vector<float> GenericTransformer::forwardToken(
     uintptr_t kvCacheBase,
     const std::string& device
 ) {
-    // Validate inputs
     if (token < 0 || token >= config_.vocabSize) {
         throw std::out_of_range("Token ID out of vocab range");
     }
-    
     bool useCuda = (device == "cuda");
     int32_t hiddenDim = config_.hiddenDim;
     int32_t numHeads = config_.numHeads;
@@ -124,7 +106,7 @@ std::vector<float> GenericTransformer::forwardToken(
     int32_t intermediateDim = config_.intermediateDim;
 
 #ifdef COTTUS_DEBUG_PARITY
-    if (pos == 0) { // Print for first position
+    if (pos == 0) {     
         std::cout << "\n[DEBUG] Config Values (C++):" << std::endl;
         std::cout << "  hiddenDim: " << hiddenDim << std::endl;
         std::cout << "  numHeads: " << numHeads << std::endl;
@@ -134,17 +116,14 @@ std::vector<float> GenericTransformer::forwardToken(
     }
 #endif
     
-    // Allocate working buffers (host)
-    std::vector<float> x(hiddenDim);           // Current hidden state
-    std::vector<float> xb(hiddenDim);          // Buffer for residuals
-    std::vector<float> q(numHeads * headDim);  // Query
-    std::vector<float> k(numKvHeads * headDim);// Key
-    std::vector<float> v(numKvHeads * headDim);// Value
-    std::vector<float> att(numHeads * headDim);// Attention output
-    std::vector<float> hb(intermediateDim);    // FFN hidden buffer
-    std::vector<float> hb2(intermediateDim);   // FFN second buffer
-    
-    // Device buffers (if CUDA)
+    std::vector<float> x(hiddenDim);           
+    std::vector<float> xb(hiddenDim);          
+    std::vector<float> q(numHeads * headDim);  
+    std::vector<float> k(numKvHeads * headDim);
+    std::vector<float> v(numKvHeads * headDim);
+    std::vector<float> att(numHeads * headDim);
+    std::vector<float> hb(intermediateDim);    
+    std::vector<float> hb2(intermediateDim);   
     float *d_x = nullptr, *d_xb = nullptr, *d_q = nullptr, *d_k = nullptr, *d_v = nullptr;
     float *d_att = nullptr, *d_hb = nullptr, *d_hb2 = nullptr;
     
@@ -160,26 +139,19 @@ std::vector<float> GenericTransformer::forwardToken(
     }
     
     try {
-        // 1. Token embedding lookup
         const float* embedTable = reinterpret_cast<const float*>(token_embedding_table_);
         std::memcpy(x.data(), embedTable + token * hiddenDim, hiddenDim * sizeof(float));
         
         if (useCuda) {
             CUDA_CHECK(cudaMemcpy(d_x, x.data(), hiddenDim * sizeof(float), cudaMemcpyHostToDevice));
         }
-        
-        // 2. Process each transformer layer
         for (int32_t layer = 0; layer < config_.numLayers; ++layer) {
             const LayerWeights& weights = layers_[layer];
-            
-            // Save residual
             if (useCuda) {
                 CUDA_CHECK(cudaMemcpy(d_xb, d_x, hiddenDim * sizeof(float), cudaMemcpyDeviceToDevice));
             } else {
                 std::memcpy(xb.data(), x.data(), hiddenDim * sizeof(float));
             }
-            
-            // 2a. Pre-attention RMSNorm
             if (useCuda) {
                 rmsnormCUDA(d_x, d_x, reinterpret_cast<const float*>(weights.attention_norm), hiddenDim, config_.normEpsilon);
             } else {
@@ -187,7 +159,7 @@ std::vector<float> GenericTransformer::forwardToken(
             }
             
 #ifdef COTTUS_DEBUG_PARITY
-            if (!useCuda && layer < 2) {  // Debug both Layer 0 and Layer 1
+            if (!useCuda && layer < 2) {
                 std::cout << "\n[DEBUG] After pre-attn RMSNorm (layer " << layer << "):" << std::endl;
                 std::cout << "  First 8 values: ";
                 for (int i = 0; i < std::min(8, hiddenDim); ++i) {
@@ -196,8 +168,6 @@ std::vector<float> GenericTransformer::forwardToken(
                 std::cout << std::endl;
             }
 #endif
-            
-            // 2b. QKV projections
             if (useCuda) {
                 gemmCUDA(d_q, d_x, reinterpret_cast<const float*>(weights.wq), 1, numHeads * headDim, hiddenDim);
                 gemmCUDA(d_k, d_x, reinterpret_cast<const float*>(weights.wk), 1, numKvHeads * headDim, hiddenDim);
@@ -225,8 +195,6 @@ std::vector<float> GenericTransformer::forwardToken(
                 std::cout << std::endl;
             }
 #endif
-            
-            // 2c. RoPE (rotary position embeddings)
             if (useCuda) {
                 ropeCUDA(d_q, d_q, pos, numHeads, headDim, config_.ropeTheta);
                 ropeCUDA(d_k, d_k, pos, numKvHeads, headDim, config_.ropeTheta);
@@ -252,9 +220,6 @@ std::vector<float> GenericTransformer::forwardToken(
                 std::cout << std::endl;
             }
 #endif
-            
-            // 2d. Write K, V to KV cache
-            // Determine which block to write to
             int32_t logicalBlockIdx = pos / config_.blockSize;
             int32_t tokenInBlock = pos % config_.blockSize;
             
@@ -263,15 +228,21 @@ std::vector<float> GenericTransformer::forwardToken(
             }
             
             int32_t physicalBlockId = pageTable[logicalBlockIdx];
-            
-            // Calculate KV cache layout offsets (Phase 6 spec)
             int32_t elementsPerLayerKV = config_.blockSize * numKvHeads * headDim;
-            int32_t elementsPerBlock = 2 * elementsPerLayerKV * config_.numLayers;  // K and V for all layers
+            int32_t elementsPerBlock = 2 * elementsPerLayerKV * config_.numLayers;
             
             int32_t blockBase = physicalBlockId * elementsPerBlock;
             int32_t layerOffset = layer * 2 * elementsPerLayerKV;
             
-            // Write K
+#ifdef COTTUS_DEBUG_PARITY
+            if (!useCuda && layer < 2) {
+                std::cout << "\n[DEBUG] KV Cache Write (layer " << layer << ", pos=" << pos << "):" << std::endl;
+                std::cout << "  physicalBlockId: " << physicalBlockId << std::endl;
+                std::cout << "  blockBase: " << blockBase << std::endl;
+                std::cout << "  layerOffset: " << layerOffset << std::endl;
+                std::cout << "  K write base: " << (blockBase + layerOffset) << std::endl;
+            }
+#endif
             if (useCuda) {
                 CUDA_CHECK(cudaMemcpy(k.data(), d_k, numKvHeads * headDim * sizeof(float), cudaMemcpyDeviceToHost));
             }
@@ -282,7 +253,6 @@ std::vector<float> GenericTransformer::forwardToken(
                     int32_t keyOffset = blockBase + layerOffset + 
                                        tokenInBlock * (numKvHeads * headDim) + 
                                        h * headDim + d;
-                    // Convert FP32 to FP16 and write
                     float val = k[h * headDim + d];
                     uint32_t bits;
                     std::memcpy(&bits, &val, sizeof(float));
@@ -294,8 +264,6 @@ std::vector<float> GenericTransformer::forwardToken(
                     else kvCachePtr[keyOffset] = static_cast<uint16_t>(sign | (exp << 10) | mant);
                 }
             }
-            
-            // Write V
             if (useCuda) {
                 CUDA_CHECK(cudaMemcpy(v.data(), d_v, numKvHeads * headDim * sizeof(float), cudaMemcpyDeviceToHost));
             }
@@ -305,7 +273,6 @@ std::vector<float> GenericTransformer::forwardToken(
                     int32_t valueOffset = blockBase + layerOffset + elementsPerLayerKV +
                                          tokenInBlock * (numKvHeads * headDim) + 
                                          h * headDim + d;
-                    // Convert FP32 to FP16 and write
                     float val = v[h * headDim + d];
                     uint32_t bits;
                     std::memcpy(&bits, &val, sizeof(float));
@@ -317,8 +284,6 @@ std::vector<float> GenericTransformer::forwardToken(
                     else kvCachePtr[valueOffset] = static_cast<uint16_t>(sign | (exp << 10) | mant);
                 }
             }
-            
-            // 2e. PagedAttention
             if (useCuda) {
                 CUDA_CHECK(cudaMemcpy(q.data(), d_q, numHeads * headDim * sizeof(float), cudaMemcpyDeviceToHost));
                 pagedAttentionCUDA(d_att, d_q, reinterpret_cast<const void*>(kvCacheBase), pageTable, pos + 1, layer, numHeads, numKvHeads, headDim, config_.blockSize, config_.numLayers);
@@ -339,7 +304,6 @@ std::vector<float> GenericTransformer::forwardToken(
             }
 #endif
             
-            // 2f. Output projection
             if (useCuda) {
                 CUDA_CHECK(cudaMemcpy(d_att, att.data(), numHeads * headDim * sizeof(float), cudaMemcpyHostToDevice));
                 gemmCUDA(d_x, d_att, reinterpret_cast<const float*>(weights.wo), 1, hiddenDim, numHeads * headDim);
@@ -355,74 +319,62 @@ std::vector<float> GenericTransformer::forwardToken(
                 std::cout << std::endl;
             }
 #endif
-            
-            // 2g. Residual connection
-            if (useCuda) {
+            if (useCuda)
+            {
                 residualAddCUDA(d_x, d_x, d_xb, hiddenDim);
-            } else {
+            }
+            else
+            {
                 residualAddCPU(x.data(), x.data(), xb.data(), hiddenDim);
             }
-            
-            // Save residual for FFN
-            if (useCuda) {
+            if
+            (useCuda)
+            {
                 CUDA_CHECK(cudaMemcpy(d_xb, d_x, hiddenDim * sizeof(float), cudaMemcpyDeviceToDevice));
-            } else {
+            }
+            else
+            {
                 std::memcpy(xb.data(), x.data(), hiddenDim * sizeof(float));
             }
-            
-            // 2h. Pre-FFN RMSNorm
-            if (useCuda) {
+            if(useCuda)
+            {
                 rmsnormCUDA(d_x, d_x, reinterpret_cast<const float*>(weights.ffn_norm), hiddenDim, config_.normEpsilon);
-            } else {
-                rmsnormCPU(x.data(), x.data(), reinterpret_cast<const float*>(weights.ffn_norm), hiddenDim, config_.normEpsilon);
             }
             
-            // 2i. FFN: Gate and Up projections
+            else
+            {
+                rmsnormCPU(x.data(), x.data(), reinterpret_cast<const float*>(weights.ffn_norm), hiddenDim, config_.normEpsilon);
+            }
             if (useCuda) {
-                gemmCUDA(d_hb, d_x, reinterpret_cast<const float*>(weights.w1), 1, intermediateDim, hiddenDim);  // Gate
-                gemmCUDA(d_hb2, d_x, reinterpret_cast<const float*>(weights.w3), 1, intermediateDim, hiddenDim); // Up
-                
-                // SiLU activation on gate
+                gemmCUDA(d_hb, d_x, reinterpret_cast<const float*>(weights.w1), 1, intermediateDim, hiddenDim);  
+                gemmCUDA(d_hb2, d_x, reinterpret_cast<const float*>(weights.w3), 1, intermediateDim, hiddenDim); 
                 siluCUDA(d_hb, d_hb, intermediateDim);
-                
-                // Element-wise multiply: gate * up
                 elementwiseMultiplyCUDA(d_hb, d_hb, d_hb2, intermediateDim);
-                
-                // Down projection
                 gemmCUDA(d_x, d_hb, reinterpret_cast<const float*>(weights.w2), 1, hiddenDim, intermediateDim);
             } else {
                 gemmCPU(hb.data(), x.data(), reinterpret_cast<const float*>(weights.w1), 1, intermediateDim, hiddenDim);
-                gemmCPU(hb2.data(), x.data(), reinterpret_cast<const float*>(weights.w3), 1, intermediateDim, hiddenDim);
+                gemmCPU(hb2.data(), x.data(),  reinterpret_cast<const float*>(weights.w3), 1, intermediateDim, hiddenDim);
                 
                 siluCPU(hb.data(), hb.data(), intermediateDim);
                 
-                // Element-wise multiply
                 elementwiseMultiplyCPU(hb.data(), hb.data(), hb2.data(), intermediateDim);
                 
                 gemmCPU(x.data(), hb.data(), reinterpret_cast<const float*>(weights.w2), 1, hiddenDim, intermediateDim);
             }
-            
-            // 2j. Final residual connection
             if (useCuda) {
                 residualAddCUDA(d_x, d_x, d_xb, hiddenDim);
             } else {
                 residualAddCPU(x.data(), x.data(), xb.data(), hiddenDim);
             }
         }
-        
-        // 3. Final RMSNorm
         if (useCuda) {
             rmsnormCUDA(d_x, d_x, reinterpret_cast<const float*>(output_norm_), hiddenDim, config_.normEpsilon);
             CUDA_CHECK(cudaMemcpy(x.data(), d_x, hiddenDim * sizeof(float), cudaMemcpyDeviceToHost));
         } else {
             rmsnormCPU(x.data(), x.data(), reinterpret_cast<const float*>(output_norm_), hiddenDim, config_.normEpsilon);
         }
-        
-        // 4. Output head projection
         std::vector<float> logits(config_.vocabSize);
         gemmCPU(logits.data(), x.data(), reinterpret_cast<const float*>(output_head_), 1, config_.vocabSize, hiddenDim);
-        
-        // Cleanup CUDA buffers
         if (useCuda) {
             CUDA_CHECK(cudaFree(d_x));
             CUDA_CHECK(cudaFree(d_xb));
@@ -437,7 +389,6 @@ std::vector<float> GenericTransformer::forwardToken(
         return logits;
         
     } catch (...) {
-        // Cleanup on exception
         if (useCuda) {
             cudaFree(d_x);
             cudaFree(d_xb);
