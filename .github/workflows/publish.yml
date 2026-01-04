@@ -34,7 +34,7 @@ jobs:
       run: |
         pip install auditwheel
         python -m build
-        auditwheel repair dist/*.whl --plat manylinux_2_31_x86_64 -w dist/fixed
+        auditwheel repair dist/*.whl -w dist/fixed
         mv dist/fixed/* dist/
         rm -rf dist/fixed
         rm dist/*linux_x86_64.whl
