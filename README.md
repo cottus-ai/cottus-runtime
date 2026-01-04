@@ -10,7 +10,7 @@ High-performance C++/CUDA LLM inference engine with Python bindings.
 
 <div align="center">
 
-[![PyPI](https://img.shields.io/pypi/v/cottus-runtime)](https://pypi.org/project/cottus-runtime/)
+[![PyPI](https://img.shields.io/pypi/v/cottus)](https://pypi.org/project/cottus/)
 [![Python](https://img.shields.io/badge/python-3.8%2B-blue)](https://www.python.org/)
 [![C++](https://img.shields.io/badge/std-c%2B%2B17-blue)](https://en.cppreference.com/w/cpp/17)
 [![CUDA](https://img.shields.io/badge/cuda-12.0%2B-green)](https://developer.nvidia.com/cuda-toolkit)

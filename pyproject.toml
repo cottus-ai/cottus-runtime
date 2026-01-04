@@ -3,7 +3,7 @@ requires = ["setuptools>=42", "wheel", "cmake", "ninja", "pybind11"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "cottus-runtime"
+name = "cottus"
 version = "0.1.0"
 description = "High-performance Llama inference engine"
 readme = "README.md"
