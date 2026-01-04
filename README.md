@@ -27,15 +27,6 @@ Cottus Runtime is a custom inference engine built from scratch for Llama archite
 - **Parity:** Exact token matching with HuggingFace Transformers (verified).
 - **Interface:** Clean Python API via PyBind11.
 
-## Current Limitations (v0.1)
-
-- Single‑GPU only
-- Limited model family support (LLaMA‑style)
-- CPU backend not optimized (minor numerical divergence vs CUDA)
-- No quantization support
-
-These constraints are intentional for the initial release.
-
 ## What to expect in future
 ### Here is what I have planned to add to the project in later iterations. Send a PR if you want to contribute to the project.
 - **Multi‑GPU & Distributed Execution** – Enable scaling across multiple GPUs and clusters for larger models.  
