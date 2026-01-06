@@ -10,7 +10,7 @@ using namespace cottus;
 PYBIND11_MODULE(_cottus_C, m) {
     m.doc() = "Cottus Runtime v0.1 C++ Backend";
     
-    // Expose EngineConfig
+    //expose thy EngineConfig
     py::class_<EngineConfig>(m, "EngineConfig")
         .def(py::init<>())
         .def_readwrite("vocab_size", &EngineConfig::vocabSize)
@@ -27,7 +27,7 @@ PYBIND11_MODULE(_cottus_C, m) {
         .def_readwrite("device", &EngineConfig::device)
         .def_readwrite("dtype", &EngineConfig::dtype);
     
-    // Expose Engine
+    //expose thy Engine
     py::class_<Engine>(m, "Engine")
         .def(py::init<const EngineConfig&, const std::unordered_map<std::string, uintptr_t>&>(),
              py::arg("config"),

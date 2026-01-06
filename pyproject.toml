@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "cottus"
 version = "0.1.0"
-description = "High-performance Llama inference engine"
+description = "C++/CUDA LLM inference engine with Python bindings."
 readme = "README.md"
 authors = [{name = "Cottus Team"}]
 license = {text = "Apache License 2.0"}

@@ -59,7 +59,7 @@ class CMakeBuild(build_ext):
 setup(
     name='cottus-runtime',
     version='0.1.0',
-    author='Cottus Team',
+    author='ruskaruma',
     description='High-performance Llama inference engine',
     long_description='',
     ext_modules=[CMakeExtension('_cottus_C')],

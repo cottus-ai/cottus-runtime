@@ -7,21 +7,14 @@
 #include <limits>
 
 namespace cottus {
-
-// Helper: Convert fp16 to fp32
-// Using uint16_t representation for fp16
 static inline float fp16_to_fp32(uint16_t h) {
-    // Simple conversion (not handling denormals/inf/nan for v0.1)
     uint32_t sign = (h & 0x8000) << 16;
     uint32_t exp = (h & 0x7C00) >> 10;
     uint32_t mant = (h & 0x03FF);
     
-    if (exp == 0) return 0.0f; // Treat denormals as zero for simplicity
-    
-    // Rebias exponent from 15 to 127
+    if (exp == 0) return 0.0f; /
     exp = (exp - 15 + 127) << 23;
     mant = mant << 13;
-    
     uint32_t bits = sign | exp | mant;
     float result;
     std::memcpy(&result, &bits, sizeof(float));
@@ -41,7 +34,6 @@ void pagedAttentionCPU(
     int32_t blockSize,
     int32_t numLayers
 ) {
-    // Validate inputs
     if (seqLen <= 0) throw std::invalid_argument("seqLen must be positive");
     if (layerIdx < 0) throw std::invalid_argument("layerIdx must be non-negative");
     if (numHeads <= 0 || numKvHeads <= 0) throw std::invalid_argument("numHeads must be positive");
@@ -50,24 +42,14 @@ void pagedAttentionCPU(
     
     const uint16_t* kvCache = static_cast<const uint16_t*>(kvCacheBase);
     
-    // KV layout constants (from Phase 6)
     int32_t elementsPerLayerKV = blockSize * numKvHeads * headDim;
-    int32_t elementsPerBlock = 2 * elementsPerLayerKV * numLayers; // K and V for ALL layers
-    
-    // For each query head
+    int32_t elementsPerBlock = 2 * elementsPerLayerKV * numLayers;
     for (int32_t qHead = 0; qHead < numHeads; ++qHead) {
-        // GQA: Map query head to KV head
         int32_t kvHead = (qHead * numKvHeads) / numHeads;
-        
-        // Accumulate attention output for this head
         std::vector<float> headOutput(headDim, 0.0f);
         float sumExp = 0.0f;
-        
-        // Softmax inputs (scores)
         std::vector<float> scores(seqLen);
         float maxScore = -std::numeric_limits<float>::infinity();
-
-        // Pass 1: Compute scores and find max for numerical stability
         for (int32_t tokenPos = 0; tokenPos < seqLen; ++tokenPos) {
             float qk = 0.0f;
             int32_t logicalBlockIdx = tokenPos / blockSize;
@@ -96,14 +78,10 @@ void pagedAttentionCPU(
             scores[tokenPos] = qk;
             if (qk > maxScore) maxScore = qk;
         }
-
-        // Pass 2: Compute exp(score - max), sum, and weighted Value
         for (int32_t tokenPos = 0; tokenPos < seqLen; ++tokenPos) {
             float qk = scores[tokenPos];
-            float expQk = std::exp(qk - maxScore); // Subtract max
+            float expQk = std::exp(qk - maxScore); //subtracting max
             sumExp += expQk;
-
-            // Recompute offsets for Value
             int32_t logicalBlockIdx = tokenPos / blockSize;
             int32_t tokenInBlock = tokenPos % blockSize;
             int32_t physicalBlockId = pageTable[logicalBlockIdx];
@@ -118,8 +96,6 @@ void pagedAttentionCPU(
                 headOutput[d] += expQk * v;
             }
         }
-        
-        // 5. Normalize by softmax denominator
         for (int32_t d = 0; d < headDim; ++d) {
             output[qHead * headDim + d] = headOutput[d] / sumExp;
         }
