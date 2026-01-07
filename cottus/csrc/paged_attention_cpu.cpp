@@ -12,7 +12,7 @@ static inline float fp16_to_fp32(uint16_t h) {
     uint32_t exp = (h & 0x7C00) >> 10;
     uint32_t mant = (h & 0x03FF);
     
-    if (exp == 0) return 0.0f;
+    if (exp == 0) return 0.0f; /
     exp = (exp - 15 + 127) << 23;
     mant = mant << 13;
     uint32_t bits = sign | exp | mant;
