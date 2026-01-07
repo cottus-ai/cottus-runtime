@@ -72,7 +72,7 @@ __global__ void pagedAttentionKernel(
         int32_t layerOffset = layerIdx * 2 * elementsPerLayerKV;
         int32_t keyOffset = blockBase + layerOffset + 
                            tokenInBlock * (numKvHeads * headDim) + 
-                           kvHead * headDim
+                           kvHead * headDim;
         float qk = 0.0f;
         for (int32_t d = 0; d < headDim; ++d) {
             float q = query[qHead * headDim + d];
