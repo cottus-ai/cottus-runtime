@@ -1,5 +1,6 @@
 #include "../cottus/csrc/paged_attention_cpu.h"
 #include "../cottus/csrc/paged_attention_cuda.h"
+#include <cuda_runtime.h>
 #include <cassert>
 #include <iostream>
 #include <vector>
@@ -22,6 +23,47 @@ static uint16_t fp32_to_fp16(float f) {
     if (exp >= 31) return static_cast<uint16_t>(sign | 0x7C00);
     
     return static_cast<uint16_t>(sign | (exp << 10) | mant);
+}
+
+#define CUDA_CHECK_TEST(call) \
+    do { \
+        cudaError_t err = call; \
+        if (err != cudaSuccess) { \
+            std::cerr << "CUDA error at " << __FILE__ << ":" << __LINE__ << ": " \
+                      << cudaGetErrorString(err) << std::endl; \
+            throw std::runtime_error(std::string("CUDA error: ") + cudaGetErrorString(err)); \
+        } \
+    } while(0)
+
+void runPagedAttentionCUDA(
+    float* outputHost,
+    const float* queryHost,
+    const void* kvCacheHost,
+    const PageTable& pageTable,
+    int32_t seqLen, int32_t layerIdx, int32_t numHeads, int32_t numKvHeads, int32_t headDim, int32_t blockSize, int32_t numLayers
+) {
+    float *d_output, *d_query;
+    void *d_kvCache;
+    size_t outSize = numHeads * headDim * sizeof(float);
+    size_t qSize = numHeads * headDim * sizeof(float);
+    int32_t elementsPerLayerKV = blockSize * numKvHeads * headDim;
+    int32_t elementsPerBlock = 2 * elementsPerLayerKV * numLayers;
+    size_t kvSize = pageTable.numBlocks() * elementsPerBlock * sizeof(uint16_t);
+    
+    CUDA_CHECK_TEST(cudaMalloc(&d_output, outSize));
+    CUDA_CHECK_TEST(cudaMalloc(&d_query, qSize));
+    CUDA_CHECK_TEST(cudaMalloc(&d_kvCache, kvSize));
+    
+    CUDA_CHECK_TEST(cudaMemcpy(d_query, queryHost, qSize, cudaMemcpyHostToDevice));
+    CUDA_CHECK_TEST(cudaMemcpy(d_kvCache, kvCacheHost, kvSize, cudaMemcpyHostToDevice));
+    
+    pagedAttentionCUDA(d_output, d_query, d_kvCache, pageTable, seqLen, layerIdx, numHeads, numKvHeads, headDim, blockSize, numLayers);
+    
+    CUDA_CHECK_TEST(cudaMemcpy(outputHost, d_output, outSize, cudaMemcpyDeviceToHost));
+    
+    CUDA_CHECK_TEST(cudaFree(d_output));
+    CUDA_CHECK_TEST(cudaFree(d_query));
+    CUDA_CHECK_TEST(cudaFree(d_kvCache));
 }
 
 // Test 1: Single head, single block - CPU vs CUDA parity
@@ -61,7 +103,7 @@ void testParitySingleHead() {
     
     // Run CUDA
     std::vector<float> outputCUDA(numHeads * headDim);
-    pagedAttentionCUDA(outputCUDA.data(), query.data(), kvCache.data(),
+    runPagedAttentionCUDA(outputCUDA.data(), query.data(), kvCache.data(),
                       pageTable, seqLen, layerIdx, numHeads, numKvHeads, headDim, blockSize, 1);
     
     // Compare
@@ -110,7 +152,7 @@ void testParityMultiHead() {
     
     pagedAttentionCPU(outputCPU.data(), query.data(), kvCache.data(),
                      pageTable, seqLen, layerIdx, numHeads, numKvHeads, headDim, blockSize, 1);
-    pagedAttentionCUDA(outputCUDA.data(), query.data(), kvCache.data(),
+    runPagedAttentionCUDA(outputCUDA.data(), query.data(), kvCache.data(),
                       pageTable, seqLen, layerIdx, numHeads, numKvHeads, headDim, blockSize, 1);
     
     float maxDiff = 0.0f;
@@ -160,7 +202,7 @@ void testParityMultiBlock() {
     
     pagedAttentionCPU(outputCPU.data(), query.data(), kvCache.data(),
                      pageTable, seqLen, layerIdx, numHeads, numKvHeads, headDim, blockSize, 1);
-    pagedAttentionCUDA(outputCUDA.data(), query.data(), kvCache.data(),
+    runPagedAttentionCUDA(outputCUDA.data(), query.data(), kvCache.data(),
                       pageTable, seqLen, layerIdx, numHeads, numKvHeads, headDim, blockSize, 1);
     
     float maxDiff = 0.0f;
@@ -196,14 +238,14 @@ void testDeterminism() {
     pageTable.appendBlock(1);
     
     std::vector<float> referenceOutput(numHeads * headDim);
-    pagedAttentionCUDA(referenceOutput.data(), query.data(), kvCache.data(),
-                      pageTable, seqLen, layerIdx, numHeads, numKvHeads, headDim, blockSize, 1);
+    runPagedAttentionCUDA(referenceOutput.data(), query.data(), kvCache.data(),
+                       pageTable, seqLen, layerIdx, numHeads, numKvHeads, headDim, blockSize, 1);
     
     // Run 9 more times and compare
     for (int run = 0; run < 9; ++run) {
         std::vector<float> output(numHeads * headDim);
-        pagedAttentionCUDA(output.data(), query.data(), kvCache.data(),
-                          pageTable, seqLen, layerIdx, numHeads, numKvHeads, headDim, blockSize, 1);
+        runPagedAttentionCUDA(output.data(), query.data(), kvCache.data(),
+                           pageTable, seqLen, layerIdx, numHeads, numKvHeads, headDim, blockSize, 1);
         
         for (int i = 0; i < numHeads * headDim; ++i) {
             assert(output[i] == referenceOutput[i]); // Bitwise identical

@@ -28,6 +28,7 @@ public:
         int32_t pos, 
         const PageTable& pageTable, 
         uintptr_t kvCacheBase,
+        void* d_kvCacheVal,
         const std::string& device = "cuda"
     );
     ~GenericTransformer();

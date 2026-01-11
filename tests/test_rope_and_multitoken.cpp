@@ -72,11 +72,11 @@ void testRoPEPositions() {
     pageTable.appendBlock(0);
     
     // Run with token=5 at pos=0
-    std::vector<float> logits_t5_p0 = model.forwardToken(5, 0, pageTable, reinterpret_cast<uintptr_t>(kvCache.data()), "cpu");
+    std::vector<float> logits_t5_p0 = model.forwardToken(5, 0, pageTable, reinterpret_cast<uintptr_t>(kvCache.data()), nullptr, "cpu");
     
     // Run with token=7 at pos=0 (different token, same position)
     std::vector<uint16_t> kvCache2(elementsPerBlock, 0);
-    std::vector<float> logits_t7_p0 = model.forwardToken(7, 0, pageTable, reinterpret_cast<uintptr_t>(kvCache2.data()), "cpu");
+    std::vector<float> logits_t7_p0 = model.forwardToken(7, 0, pageTable, reinterpret_cast<uintptr_t>(kvCache2.data()), nullptr, "cpu");
     
     // Debug: Print first few logits
     std::cout << "  Token 5 logits: " << logits_t5_p0[0] << ", " << logits_t5_p0[1] << ", " << logits_t5_p0[2] << std::endl;
@@ -138,7 +138,7 @@ void testMultiTokenForward() {
             static_cast<int32_t>(i), 
             pageTable, 
             reinterpret_cast<uintptr_t>(kvCache.data()), 
-            "cpu"
+            nullptr, "cpu"
         );
         allLogits.push_back(logits);
         

@@ -3,6 +3,7 @@
 #include <stdexcept>
 #include <algorithm>
 #include <vector>
+#include <cuda_runtime.h>
 
 namespace cottus {
 
@@ -18,9 +19,32 @@ Engine::Engine(const EngineConfig& config, const std::unordered_map<std::string,
     int32_t elementsPerLayerKV = config.blockSize * config.numKvHeads * config.headDim;
     int32_t elementsPerBlock = 2 * elementsPerLayerKV * config.numLayers;
     kvCache_.resize(totalBlocks * elementsPerBlock, 0);
+
+    if (config.device == "cuda") {
+        size_t sizeBytes = kvCache_.size() * sizeof(uint16_t);
+        cudaError_t err = cudaMalloc(&d_kvCache_, sizeBytes);
+        if (err != cudaSuccess) {
+            throw std::runtime_error(std::string("Failed to allocate GPU KV cache (" +
+                                     std::to_string(sizeBytes / (1024*1024)) + " MB): ") +
+                                     cudaGetErrorString(err));
+        }
+        err = cudaMemset(d_kvCache_, 0, sizeBytes);
+        if (err != cudaSuccess) {
+            cudaFree(d_kvCache_);
+            d_kvCache_ = nullptr;
+            throw std::runtime_error(std::string("Failed to initialize GPU KV cache: ") +
+                                     cudaGetErrorString(err));
+        }
+    }
 }
 
-Engine::~Engine() = default;
+Engine::~Engine()
+{
+    if(d_kvCache_)
+    {
+        cudaFree(d_kvCache_);
+    }
+}
 
 std::vector<int32_t> Engine::forward(const std::vector<int32_t>& inputIds)
 {
@@ -61,6 +85,7 @@ std::vector<int32_t> Engine::generate(
                 currentPos,
                 pageTable,
                 reinterpret_cast<uintptr_t>(kvCache_.data()),
+                d_kvCache_,
                 config_.device
             );
             
@@ -80,6 +105,7 @@ std::vector<int32_t> Engine::generate(
                 currentPos,
                 pageTable,
                 reinterpret_cast<uintptr_t>(kvCache_.data()),
+                d_kvCache_,
                 config_.device
             );
             int32_t nextToken = static_cast<int32_t>(
@@ -113,6 +139,14 @@ std::vector<int32_t> Engine::generate(
 void Engine::reset()
 {
     std::fill(kvCache_.begin(), kvCache_.end(), static_cast<uint16_t>(0));
+    if (d_kvCache_) {
+        size_t sizeBytes = kvCache_.size() * sizeof(uint16_t);
+        cudaError_t err = cudaMemset(d_kvCache_, 0, sizeBytes);
+        if (err != cudaSuccess) {
+            throw std::runtime_error(std::string("Failed to reset GPU KV cache: ") +
+                                     cudaGetErrorString(err));
+        }
+    }
 }
 
 int32_t Engine::getFreeBlockCount() const {

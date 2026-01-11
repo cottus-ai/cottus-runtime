@@ -91,6 +91,7 @@ std::vector<float> GenericTransformer::forwardToken(
     int32_t pos,
     const PageTable& pageTable,
     uintptr_t kvCacheBase,
+    void* d_kvCacheVal,
     const std::string& device
 ) {
     if (token < 0 || token >= config_.vocabSize) {
@@ -242,50 +243,50 @@ std::vector<float> GenericTransformer::forwardToken(
             }
 #endif
             if (useCuda) {
-                CUDA_CHECK(cudaMemcpy(k.data(), d_k, numKvHeads * headDim * sizeof(float), cudaMemcpyDeviceToHost));
-            }
-            
-            uint16_t* kvCachePtr = reinterpret_cast<uint16_t*>(kvCacheBase);
-            for (int32_t h = 0; h < numKvHeads; ++h) {
-                for (int32_t d = 0; d < headDim; ++d) {
-                    int32_t keyOffset = blockBase + layerOffset + 
-                                       tokenInBlock * (numKvHeads * headDim) + 
-                                       h * headDim + d;
-                    float val = k[h * headDim + d];
-                    uint32_t bits;
-                    std::memcpy(&bits, &val, sizeof(float));
-                    uint32_t sign = (bits & 0x80000000) >> 16;
-                    int32_t exp = ((bits & 0x7F800000) >> 23) - 127 + 15;
-                    uint32_t mant = (bits & 0x007FFFFF) >> 13;
-                    if (exp <= 0) kvCachePtr[keyOffset] = static_cast<uint16_t>(sign);
-                    else if (exp >= 31) kvCachePtr[keyOffset] = static_cast<uint16_t>(sign | 0x7C00);
-                    else kvCachePtr[keyOffset] = static_cast<uint16_t>(sign | (exp << 10) | mant);
+                // Quantize K/V directly on GPU and write to persistent cache
+                int32_t elementsPerToken = numKvHeads * headDim;
+                int32_t kStartOffset = blockBase + layerOffset + tokenInBlock * elementsPerToken;
+                int32_t vStartOffset = blockBase + layerOffset + elementsPerLayerKV + tokenInBlock * elementsPerToken;
+                
+                quantizeAndCacheCUDA(d_kvCacheVal, d_k, d_v, numKvHeads, headDim, kStartOffset, vStartOffset);
+            } else {
+                // CPU path: quantize and write to host cache
+                uint16_t* kvCachePtr = reinterpret_cast<uint16_t*>(kvCacheBase);
+                for (int32_t h = 0; h < numKvHeads; ++h) {
+                    for (int32_t d = 0; d < headDim; ++d) {
+                        int32_t keyOffset = blockBase + layerOffset + 
+                                           tokenInBlock * (numKvHeads * headDim) + 
+                                           h * headDim + d;
+                        float val = k[h * headDim + d];
+                        uint32_t bits;
+                        std::memcpy(&bits, &val, sizeof(float));
+                        uint32_t sign = (bits & 0x80000000) >> 16;
+                        int32_t exp = ((bits & 0x7F800000) >> 23) - 127 + 15;
+                        uint32_t mant = (bits & 0x007FFFFF) >> 13;
+                        if (exp <= 0) kvCachePtr[keyOffset] = static_cast<uint16_t>(sign);
+                        else if (exp >= 31) kvCachePtr[keyOffset] = static_cast<uint16_t>(sign | 0x7C00);
+                        else kvCachePtr[keyOffset] = static_cast<uint16_t>(sign | (exp << 10) | mant);
+                    }
+                }
+                for (int32_t h = 0; h < numKvHeads; ++h) {
+                    for (int32_t d = 0; d < headDim; ++d) {
+                        int32_t valueOffset = blockBase + layerOffset + elementsPerLayerKV +
+                                             tokenInBlock * (numKvHeads * headDim) + 
+                                             h * headDim + d;
+                        float val = v[h * headDim + d];
+                        uint32_t bits;
+                        std::memcpy(&bits, &val, sizeof(float));
+                        uint32_t sign = (bits & 0x80000000) >> 16;
+                        int32_t exp = ((bits & 0x7F800000) >> 23) - 127 + 15;
+                        uint32_t mant = (bits & 0x007FFFFF) >> 13;
+                        if (exp <= 0) kvCachePtr[valueOffset] = static_cast<uint16_t>(sign);
+                        else if (exp >= 31) kvCachePtr[valueOffset] = static_cast<uint16_t>(sign | 0x7C00);
+                        else kvCachePtr[valueOffset] = static_cast<uint16_t>(sign | (exp << 10) | mant);
+                    }
                 }
             }
             if (useCuda) {
-                CUDA_CHECK(cudaMemcpy(v.data(), d_v, numKvHeads * headDim * sizeof(float), cudaMemcpyDeviceToHost));
-            }
-            
-            for (int32_t h = 0; h < numKvHeads; ++h) {
-                for (int32_t d = 0; d < headDim; ++d) {
-                    int32_t valueOffset = blockBase + layerOffset + elementsPerLayerKV +
-                                         tokenInBlock * (numKvHeads * headDim) + 
-                                         h * headDim + d;
-                    float val = v[h * headDim + d];
-                    uint32_t bits;
-                    std::memcpy(&bits, &val, sizeof(float));
-                    uint32_t sign = (bits & 0x80000000) >> 16;
-                    int32_t exp = ((bits & 0x7F800000) >> 23) - 127 + 15;
-                    uint32_t mant = (bits & 0x007FFFFF) >> 13;
-                    if (exp <= 0) kvCachePtr[valueOffset] = static_cast<uint16_t>(sign);
-                    else if (exp >= 31) kvCachePtr[valueOffset] = static_cast<uint16_t>(sign | 0x7C00);
-                    else kvCachePtr[valueOffset] = static_cast<uint16_t>(sign | (exp << 10) | mant);
-                }
-            }
-            if (useCuda) {
-                CUDA_CHECK(cudaMemcpy(q.data(), d_q, numHeads * headDim * sizeof(float), cudaMemcpyDeviceToHost));
-                pagedAttentionCUDA(d_att, d_q, reinterpret_cast<const void*>(kvCacheBase), pageTable, pos + 1, layer, numHeads, numKvHeads, headDim, config_.blockSize, config_.numLayers);
-                CUDA_CHECK(cudaMemcpy(att.data(), d_att, numHeads * headDim * sizeof(float), cudaMemcpyDeviceToHost));
+                pagedAttentionCUDA(d_att, d_q, d_kvCacheVal, pageTable, pos + 1, layer, numHeads, numKvHeads, headDim, config_.blockSize, config_.numLayers);
             } else {
                 pagedAttentionCPU(att.data(), q.data(), reinterpret_cast<const void*>(kvCacheBase), 
                                  pageTable, pos + 1, layer, numHeads, numKvHeads, headDim, config_.blockSize, config_.numLayers);
@@ -303,7 +304,6 @@ std::vector<float> GenericTransformer::forwardToken(
 #endif
             
             if (useCuda) {
-                CUDA_CHECK(cudaMemcpy(d_att, att.data(), numHeads * headDim * sizeof(float), cudaMemcpyHostToDevice));
                 gemmCUDA(d_x, d_att, reinterpret_cast<const float*>(weights.wo), 1, hiddenDim, numHeads * headDim);
             } else {
                 gemmCPU(x.data(), att.data(), reinterpret_cast<const float*>(weights.wo), 1, hiddenDim, numHeads * headDim);

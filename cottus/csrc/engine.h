@@ -43,6 +43,7 @@ private:
     std::unique_ptr<BlockAllocator> blockAllocator_;
     std::unique_ptr<class GenericTransformer> transformer_;
     std::vector<uint16_t> kvCache_;
+    void* d_kvCache_ = nullptr;
 };
 
 } // namespace cottus
