@@ -88,7 +88,7 @@ void testSingleLayerForward() {
             0,   // pos
             pageTable,
             reinterpret_cast<uintptr_t>(kvCache.data()),
-            "cpu"
+            nullptr, "cpu"
         );
         
         // Verify output shape
@@ -144,8 +144,8 @@ void testDeterminism() {
     pageTable.appendBlock(0);
     
     // Run twice
-    std::vector<float> logits1 = model.forwardToken(10, 0, pageTable, reinterpret_cast<uintptr_t>(kvCache.data()), "cpu");
-    std::vector<float> logits2 = model.forwardToken(10, 0, pageTable, reinterpret_cast<uintptr_t>(kvCache.data()), "cpu");
+    std::vector<float> logits1 = model.forwardToken(10, 0, pageTable, reinterpret_cast<uintptr_t>(kvCache.data()), nullptr, "cpu");
+    std::vector<float> logits2 = model.forwardToken(10, 0, pageTable, reinterpret_cast<uintptr_t>(kvCache.data()), nullptr, "cpu");
     
     // Compare
     assert(logits1.size() == logits2.size());

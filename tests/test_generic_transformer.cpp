@@ -73,7 +73,7 @@ void testWeightLoading() {
         PageTable pt(config.blockSize);
         pt.appendBlock(0);
         
-        std::vector<float> logits = model.forwardToken(5, 0, pt, reinterpret_cast<uintptr_t>(kvCache.data()), "cpu");
+        std::vector<float> logits = model.forwardToken(5, 0, pt, reinterpret_cast<uintptr_t>(kvCache.data()), nullptr, "cpu");
         assert(logits.size() == static_cast<size_t>(config.vocabSize));
         std::cout << "PASS: Forward token success" << std::endl;
     }

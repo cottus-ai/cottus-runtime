@@ -20,4 +20,15 @@ void pagedAttentionCUDA(
     int32_t numLayers           
 );
 
+// Quantize FP32 K/V to FP16 and write to GPU KV cache
+void quantizeAndCacheCUDA(
+    void* d_kvCache,
+    const float* d_k,
+    const float* d_v,
+    int32_t numKvHeads,
+    int32_t headDim,
+    int32_t kStartOffset,
+    int32_t vStartOffset
+);
+
 } // namespace cottus
