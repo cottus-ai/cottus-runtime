@@ -67,7 +67,7 @@ pip install cottus
 
 Using uv (recommended for speed):
 ```bash
-uv install cottus
+uv add cottus
 ```
 
 
