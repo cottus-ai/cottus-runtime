@@ -52,15 +52,12 @@ void runPagedAttentionCUDA(
     
     CUDA_CHECK_TEST(cudaMalloc(&d_output, outSize));
     CUDA_CHECK_TEST(cudaMalloc(&d_query, qSize));
-    CUDA_CHECK_TEST(cudaMalloc(&d_kvCache, kvSize));
-    
+    CUDA_CHECK_TEST(cudaMalloc(&d_kvCache, kvSize));    
     CUDA_CHECK_TEST(cudaMemcpy(d_query, queryHost, qSize, cudaMemcpyHostToDevice));
     CUDA_CHECK_TEST(cudaMemcpy(d_kvCache, kvCacheHost, kvSize, cudaMemcpyHostToDevice));
-    
     pagedAttentionCUDA(d_output, d_query, d_kvCache, pageTable, seqLen, layerIdx, numHeads, numKvHeads, headDim, blockSize, numLayers);
-    
     CUDA_CHECK_TEST(cudaMemcpy(outputHost, d_output, outSize, cudaMemcpyDeviceToHost));
-    
+
     CUDA_CHECK_TEST(cudaFree(d_output));
     CUDA_CHECK_TEST(cudaFree(d_query));
     CUDA_CHECK_TEST(cudaFree(d_kvCache));

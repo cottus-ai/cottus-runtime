@@ -10,6 +10,7 @@ from transformers import AutoModelForCausalLM, AutoConfig
 from typing import Dict, Tuple
 import sys
 import os
+import gc
 
 #add build directory to path for _cottus_C module
 _project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -23,31 +24,31 @@ except ImportError as e:
     print(f"Searched in: {_build_path}")
     print("Make sure to build the project first with `cmake --build build`")
     _cottus_C = None
-    print("Make sure to build the project first with `cmake --build build`")
-    _cottus_C = None
 
 
-def load_hf_model(model_name: str = "hf-internal-testing/tiny-random-LlamaForCausalLM", device: str = "cpu"):
+def load_hf_model(model_name: str = "hf-internal-testing/tiny-random-LlamaForCausalLM", device: str = "cpu", release_hf_model: bool = False):
     """
     Load a HuggingFace model and extract weights for Cottus.
     
     Args:
         model_name: HF model identifier
         device: "cpu" or "cuda"
+        release_hf_model: If True, release the HF model memory after extraction to save RAM
         
     Returns:
-        Tuple of (weight_ptrs, config, model, tokenizer)
+        Tuple of (weight_ptrs, config, model, tokenizer, weight_tensors)
         - weight_ptrs: Dict[str, int] mapping weight names to data_ptr()
         - config: Cottus EngineConfig
-        - model: HF model (must keep alive for weight lifetime)
+        - model: HF model (None if release_hf_model=True)
         - tokenizer: HF tokenizer
+        - weight_tensors: Dict keeping weights alive
     """
     from transformers import AutoTokenizer
     
     print(f"Loading HuggingFace model: {model_name} (device={device})")
     
     #load model and tokenizer
-    hf_model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.float32)
+    hf_model = AutoModelForCausalLM.from_pretrained(model_name, dtype=torch.float32)
     hf_model.eval()
     
     tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -73,22 +74,24 @@ def load_hf_model(model_name: str = "hf-internal-testing/tiny-random-LlamaForCau
         cottus_config.norm_epsilon = getattr(hf_config, 'rms_norm_eps', 1e-5)
         cottus_config.device = device
         cottus_config.dtype = "float32"
-    
-    #extract weight pointers
+        cottus_config.eos_token_id = tokenizer.eos_token_id if tokenizer.eos_token_id is not None else 2
+        cottus_config.temperature = 0.7
+        cottus_config.top_k = 40
     weight_ptrs = {}
     weight_tensors = {}  
     
     state_dict = hf_model.state_dict()
+    if release_hf_model:
+        del hf_model
+        gc.collect()
+    
     layers_to_skip = ['embed_tokens.weight']  
     transposed_count = 0
+    keys = list(state_dict.keys())
     
-    for name, tensor in state_dict.items():
-        # Ensure contiguous float32
+    for name in keys:
+        tensor = state_dict[name]
         tensor = tensor.contiguous().float()
-        
-        # Transpose 2D weight matrices (linear layers) except embeddings
-        # Skip 1D tensors (normalization weights, biases)
-        # Skip embedding tables (indexed, not multiplied)
         should_transpose = (
             len(tensor.shape) == 2 and
             not any(skip in name for skip in layers_to_skip)
@@ -100,10 +103,31 @@ def load_hf_model(model_name: str = "hf-internal-testing/tiny-random-LlamaForCau
         
         weight_tensors[name] = tensor
         weight_ptrs[name] = tensor.data_ptr()
+        if release_hf_model:
+            del state_dict[name]
+    
+    num_layers = cottus_config.num_layers if cottus_config else 0
+    for layer_idx in range(num_layers):
+        prefix = f"model.layers.{layer_idx}.self_attn"
+        q_name = f"{prefix}.q_proj.weight"
+        k_name = f"{prefix}.k_proj.weight"
+        v_name = f"{prefix}.v_proj.weight"
+        
+        if q_name in weight_tensors and k_name in weight_tensors and v_name in weight_tensors:
+            q_weight = weight_tensors[q_name]
+            k_weight = weight_tensors[k_name]
+            v_weight = weight_tensors[v_name]
+            qkv_weight = torch.cat([q_weight, k_weight, v_weight], dim=1).contiguous()
+            fused_name = f"{prefix}.qkv_proj.weight"
+            weight_tensors[fused_name] = qkv_weight
+            weight_ptrs[fused_name] = qkv_weight.data_ptr()
+            
+    if release_hf_model:
+        gc.collect()
         
     print(f"Loaded {len(weight_ptrs)} weight tensors ({transposed_count} transposed)")
     
-    return weight_ptrs, cottus_config, hf_model, tokenizer, weight_tensors
+    return weight_ptrs, cottus_config, (None if release_hf_model else hf_model), tokenizer, weight_tensors
 
 
 def create_cottus_engine(weight_ptrs: Dict[str, int], config) -> "_cottus_C.Engine":
@@ -125,8 +149,13 @@ def create_cottus_engine(weight_ptrs: Dict[str, int], config) -> "_cottus_C.Engi
 
 if __name__ == "__main__":
     #load model
-    weight_ptrs, config, model, tokenizer, tensors = load_hf_model()
+    weight_ptrs, config, model, tokenizer, tensors, hf_config = load_hf_model()
     
+    if hasattr(hf_config, "no_repeat_ngram_size") and hf_config.no_repeat_ngram_size:
+        config.no_repeat_ngram_size = hf_config.no_repeat_ngram_size
+    else:
+        config.no_repeat_ngram_size = 3 # Default safety
+        
     print(f"\nModel config:")
     print(f"  vocab_size: {config.vocab_size}")
     print(f"  hidden_dim: {config.hidden_dim}")
