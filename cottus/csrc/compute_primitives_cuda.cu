@@ -25,6 +25,8 @@ static cublasHandle_t g_cublasHandle = nullptr;
 static void ensureCublasHandle() {
     if (g_cublasHandle == nullptr) {
         CUBLAS_CHECK(cublasCreate(&g_cublasHandle));
+        // Enable TF32 for Ampere+ GPUs (huge speedup for FP32 inputs)
+        CUBLAS_CHECK(cublasSetMathMode(g_cublasHandle, CUBLAS_TF32_TENSOR_OP_MATH));
     }
 }
 void gemmCUDA(
@@ -106,8 +108,8 @@ __global__ void ropeKernel(
     float cosVal = cosf(angle);
     float sinVal = sinf(angle);
     int32_t baseIdx = head * headDim;
-    int32_t idx0 = baseIdx + 2 * d;
-    int32_t idx1 = baseIdx + 2 * d + 1;
+    int32_t idx0 = baseIdx + d;
+    int32_t idx1 = baseIdx + d + headDim / 2;
     
     //apply rotation
     float x0 = input[idx0];

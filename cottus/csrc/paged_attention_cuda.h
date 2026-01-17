@@ -20,7 +20,7 @@ void pagedAttentionCUDA(
     int32_t numLayers           
 );
 
-// Quantize FP32 K/V to FP16 and write to GPU KV cache
+//quantize FP32 K/V to FP16 and write to GPU KV cache
 void quantizeAndCacheCUDA(
     void* d_kvCache,
     const float* d_k,
