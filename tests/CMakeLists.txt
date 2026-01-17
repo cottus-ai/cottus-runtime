@@ -71,3 +71,13 @@ add_test(NAME rope_and_multitoken_test COMMAND test_rope_and_multitoken)
 add_executable(test_greedy_decode test_greedy_decode.cpp)
 target_link_libraries(test_greedy_decode PRIVATE cottus_core)
 add_test(NAME greedy_decode_test COMMAND test_greedy_decode)
+
+# Preemption Test
+add_executable(test_preemption test_preemption.cpp)
+target_link_libraries(test_preemption PRIVATE cottus_core)
+add_test(NAME preemption_test COMMAND test_preemption)
+
+# FP16 Kernels Test
+add_executable(test_fp16_kernels test_fp16_kernels.cpp)
+target_link_libraries(test_fp16_kernels PRIVATE cottus_core)
+add_test(NAME fp16_kernels_test COMMAND test_fp16_kernels)

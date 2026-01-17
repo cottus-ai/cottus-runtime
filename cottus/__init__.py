@@ -22,6 +22,12 @@ try:
     Engine = _cottus_C.Engine
     EngineConfig = _cottus_C.EngineConfig
 except ImportError:
-    #allow import for basic packaging even if compiled extension is missing
     Engine = None
     EngineConfig = None
+
+try:
+    from .async_engine import AsyncEngine
+    from .server import CottusServer
+except ImportError:
+    AsyncEngine = None
+    CottusServer = None
