@@ -11,6 +11,8 @@ public:
     int32_t getBlock(int32_t logicalIndex) const;
     int32_t operator[](int32_t logicalIndex) const;
     int32_t numBlocks() const;
+    int32_t getBlockCount() const { return numBlocks(); }
+    const std::vector<int32_t>& getBlockIds() const { return logicalToPhysical_; }
     int32_t blockSize() const;
 
 private:
