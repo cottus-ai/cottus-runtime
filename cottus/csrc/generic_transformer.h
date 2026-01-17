@@ -13,6 +13,7 @@ struct LayerWeights {
     uintptr_t wq; 
     uintptr_t wk; 
     uintptr_t wv; 
+    uintptr_t wqkv;
     uintptr_t wo;
     uintptr_t w1; 
     uintptr_t w2; 
@@ -39,6 +40,17 @@ private:
     uintptr_t output_norm_;
     uintptr_t output_head_;
     std::vector<LayerWeights> layers_;
+    float* d_x_ = nullptr;
+    float* d_xb_ = nullptr;
+    float* d_q_ = nullptr;
+    float* d_k_ = nullptr;
+    float* d_v_ = nullptr;
+    float* d_att_ = nullptr;
+    float* d_hb_ = nullptr;
+    float* d_hb2_ = nullptr;
+    
+    uintptr_t d_output_head_ = 0;
+    float* d_logits_ = nullptr;
 };
 
 } // namespace cottus

@@ -60,8 +60,8 @@ void ropeCPU(
             
             //input indices
             int32_t baseIdx = head * headDim;
-            int32_t idx0 = baseIdx + 2 * d;
-            int32_t idx1 = baseIdx + 2 * d + 1;
+            int32_t idx0 = baseIdx + d;
+            int32_t idx1 = baseIdx + d + headDim / 2;
             
             //apply rotation
             float x0 = input[idx0];

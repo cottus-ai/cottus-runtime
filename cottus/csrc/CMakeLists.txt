@@ -6,11 +6,16 @@ add_library(cottus_core STATIC
     block_allocator.cpp
     page_table.cpp
     engine.cpp
+    scheduler.cpp
+    swap_space.cpp
     generic_transformer.cpp
     paged_attention_cpu.cpp
     paged_attention_cuda.cu
+    paged_attention_fp16.cu
     compute_primitives_cpu.cpp
     compute_primitives_cuda.cu
+    fused_ops_cuda.cu
+    fp16_kernels.cu
 )
 
 set_target_properties(cottus_core PROPERTIES
