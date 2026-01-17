@@ -246,6 +246,13 @@ void testFusedSiLUMulFP16() {
 }
 
 int main() {
+    int deviceCount = 0;
+    cudaGetDeviceCount(&deviceCount);
+    if (deviceCount == 0) {
+        std::cout << "No CUDA device detected, skipping FP16 kernel tests" << std::endl;
+        return 0;
+    }
+    
     testGemmFP16();
     testRMSNormFP16();
     testRoPEFP16();
